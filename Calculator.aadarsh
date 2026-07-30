@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculator</title>
+<style>
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: #0d0d0d;
+    font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+  }
+
+  .calculator {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    max-width: 480px;
+    margin: 0 auto;
+    background: #0d0d0d;
+  }
+
+  .display {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-end;
+    padding: 20px 24px 30px;
+    min-height: 160px;
+  }
+
+  .history {
+    color: #6b6b6b;
+    font-size: 1.1rem;
+    min-height: 1.4rem;
+    margin-bottom: 6px;
+    word-break: break-all;
+    text-align: right;
+  }
+
+  .current {
+    color: #f2f2f2;
+    font-size: 3.4rem;
+    font-weight: 300;
+    word-break: break-all;
+    text-align: right;
+    width: 100%;
+  }
+
+  .keys {
+    background: #161616;
+    border-top-left-radius: 24px;
+    border-top-right-radius: 24px;
+    padding: 18px 14px 30px;
+  }
+
+  .grip {
+    width: 40px;
+    height: 4px;
+    background: #3a3a3a;
+    border-radius: 2px;
+    margin: 0 auto 18px;
+  }
+
+  .row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .key {
+    width: 22%;
+    aspect-ratio: 1;
+    border: none;
+    border-radius: 50%;
+    background: #262626;
+    color: #f2f2f2;
+    font-size: 1.6rem;
+    font-weight: 400;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.12s ease, transform 0.06s ease;
+  }
+
+  .key:active {
+    transform: scale(0.94);
+    background: #333;
+  }
+
+  .key.operator {
+    color: #ff8a3d;
+    font-size: 1.8rem;
+  }
+
+  .key.equals {
+    background: #ff8a3d;
+    color: #161616;
+  }
+
+  .key.equals:active {
+    background: #e97b30;
+  }
+
+  .key.zero {
+    width: 48%;
+    border-radius: 32px;
+    justify-content: flex-start;
+    padding-left: 28px;
+  }
+
+  .key.dot {
+    width: 22%;
+  }
+
+  .row.last {
+    align-items: center;
+  }
+</style>
+</head>
+<body>
+
+<div class="calculator">
+  <div class="display">
+    <div class="history" id="history">&nbsp;</div>
+    <div class="current" id="current">0</div>
+  </div>
+
+  <div class="keys">
+    <div class="grip"></div>
+
+    <div class="row">
+      <button class="key" data-action="clear">C</button>
+      <button class="key" data-action="sign">+/-</button>
+      <button class="key" data-action="backspace">⌫</button>
+      <button class="key operator" data-op="÷">÷</button>
+    </div>
+
+    <div class="row">
+      <button class="key" data-num="7">7</button>
+      <button class="key" data-num="8">8</button>
+      <button class="key" data-num="9">9</button>
+      <button class="key operator" data-op="×">×</button>
+    </div>
+
+    <div class="row">
+      <button class="key" data-num="4">4</button>
+      <button class="key" data-num="5">5</button>
+      <button class="key" data-num="6">6</button>
+      <button class="key operator" data-op="−">−</button>
+    </div>
+
+    <div class="row">
+      <button class="key" data-num="1">1</button>
+      <button class="key" data-num="2">2</button>
+      <button class="key" data-num="3">3</button>
+      <button class="key operator" data-op="+">+</button>
+    </div>
+
+    <div class="row last">
+      <button class="key zero" data-num="0">0</button>
+      <button class="key dot" data-action="dot">.</button>
+      <button class="key equals" data-action="equals">=</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const currentEl = document.getElementById('current');
+  const historyEl = document.getElementById('history');
+
+  let current = '0';
+  let previous = null;
+  let operator = null;
+  let justEvaluated = false;
+
+  function updateDisplay() {
+    currentEl.textContent = formatNumber(current);
+    historyEl.textContent = previous !== null && operator
+      ? `${formatNumber(previous)} ${operator}`
+      : '\u00A0';
+  }
+
+  function formatNumber(numStr) {
+    if (numStr === '' || numStr === undefined) return '0';
+    let [intPart, decPart] = numStr.split('.');
+    const negative = intPart.startsWith('-');
+    if (negative) intPart = intPart.slice(1);
+    intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    let result = (negative ? '-' : '') + intPart;
+    if (decPart !== undefined) result += '.' + decPart;
+    return result;
+  }
+
+  function inputNumber(num) {
+    if (justEvaluated) {
+      current = num;
+      justEvaluated = false;
+      return;
+    }
+    if (current === '0') {
+      current = num;
+    } else {
+      if (current.replace(/[-.]/g, '').length >= 15) return;
+      current += num;
+    }
+  }
+
+  function inputDot() {
+    if (justEvaluated) {
+      current = '0.';
+      justEvaluated = false;
+      return;
+    }
+    if (!current.includes('.')) current += '.';
+  }
+
+  function toggleSign() {
+    if (current === '0') return;
+    current = current.startsWith('-') ? current.slice(1) : '-' + current;
+  }
+
+  function backspace() {
+    if (justEvaluated) return;
+    if (current.length <= 1 || (current.length === 2 && current.startsWith('-'))) {
+      current = '0';
+    } else {
+      current = current.slice(0, -1);
+    }
+  }
+
+  function clearAll() {
+    current = '0';
+    previous = null;
+    operator = null;
+    justEvaluated = false;
+  }
+
+  function compute(a, b, op) {
+    a = parseFloat(a);
+    b = parseFloat(b);
+    let result;
+    switch (op) {
+      case '+': result = a + b; break;
+      case '−': result = a - b; break;
+      case '×': result = a * b; break;
+      case '÷': result = b === 0 ? NaN : a / b; break;
+      default: return b;
+    }
+    if (Number.isNaN(result)) return 'Error';
+    result = Math.round((result + Number.EPSILON) * 1e10) / 1e10;
+    return result.toString();
+  }
+
+  function handleOperator(op) {
+    if (operator && previous !== null && !justEvaluated) {
+      const result = compute(previous, current, operator);
+      previous = result;
+      current = result;
+    } else {
+      previous = current;
+    }
+    operator = op;
+    justEvaluated = false;
+    current = current; // keep showing current, will reset on next number input
+    // prepare for fresh number entry
+    current = current;
+    previous = previous;
+    // flag to start new number
+    startNew = true;
+  }
+
+  let startNew = false;
+
+  function inputNumberWrapped(num) {
+    if (startNew) {
+      current = '0';
+      startNew = false;
+    }
+    inputNumber(num);
+  }
+
+  function inputDotWrapped() {
+    if (startNew) {
+      current = '0';
+      startNew = false;
+    }
+    inputDot();
+  }
+
+  function equals() {
+    if (operator === null || previous === null) return;
+    const result = compute(previous, current, operator);
+    current = result;
+    previous = null;
+    operator = null;
+    justEvaluated = true;
+    startNew = false;
+  }
+
+  document.querySelectorAll('[data-num]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      inputNumberWrapped(btn.dataset.num);
+      updateDisplay();
+    });
+  });
+
+  document.querySelectorAll('[data-op]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      handleOperator(btn.dataset.op);
+      updateDisplay();
+    });
+  });
+
+  document.querySelector('[data-action="clear"]').addEventListener('click', () => {
+    clearAll();
+    updateDisplay();
+  });
+
+  document.querySelector('[data-action="sign"]').addEventListener('click', () => {
+    toggleSign();
+    updateDisplay();
+  });
+
+  document.querySelector('[data-action="backspace"]').addEventListener('click', () => {
+    backspace();
+    updateDisplay();
+  });
+
+  document.querySelector('[data-action="dot"]').addEventListener('click', () => {
+    inputDotWrapped();
+    updateDisplay();
+  });
+
+  document.querySelector('[data-action="equals"]').addEventListener('click', () => {
+    equals();
+    updateDisplay();
+  });
+
+  // Keyboard support
+  window.addEventListener('keydown', (e) => {
+    if (e.key >= '0' && e.key <= '9') {
+      inputNumberWrapped(e.key);
+      updateDisplay();
+    } else if (e.key === '.') {
+      inputDotWrapped();
+      updateDisplay();
+    } else if (e.key === '+') {
+      handleOperator('+');
+      updateDisplay();
+    } else if (e.key === '-') {
+      handleOperator('−');
+      updateDisplay();
+    } else if (e.key === '*') {
+      handleOperator('×');
+      updateDisplay();
+    } else if (e.key === '/') {
+      e.preventDefault();
+      handleOperator('÷');
+      updateDisplay();
+    } else if (e.key === 'Enter' || e.key === '=') {
+      equals();
+      updateDisplay();
+    } else if (e.key === 'Backspace') {
+      backspace();
+      updateDisplay();
+    } else if (e.key === 'Escape') {
+      clearAll();
+      updateDisplay();
+    }
+  });
+
+  updateDisplay();
+</script>
+
+</body>
+</html>
